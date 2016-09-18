@@ -31,72 +31,6 @@ var http = require('http');
 var https = require('https');
 var request = require('request');
 var _ = require('underscore');
-var requirejs = require('requirejs');
-
-// Load Nessie 
-requirejs.config({
-    //Pass the top-level main.js/index.js require
-    //function to requirejs so that node modules
-    //are loaded relative to the top-level JS file.
-    nodeRequire: require
-});
-
-
-require.config({
-    baseUrl: 'lib_nessie/',
-    context: VERSION,
-    bundles: {
-        'main': ['capital_one', 'account', 'bills', 'atm', 'branch', 'customer', 'deposit', 'withdrawal','merchant', 'purchase', 'transfer']
-    }
-});
-
-require(['account', 'atm', 'bills', 'branch', 'customer', 'deposit', 'withdrawal', 'merchant', 'purchase', 'transfer']);
-
-define('capital_one', function() {
-    "use strict";
-    var Config = {
-        baseUrl: 'http://api.reimaginebanking.com:80',
-        apiKey: function() {
-            return this.apiKey;
-        },
-        setApiKey: function(apiKey) {
-            this.apiKey = apiKey;
-        }
-    };
-    return Config;
-});
-var apiKey = '48dde91a66abb51288c608d269c6bb36';
-// set the modules being used
-require(['customer'], function (customer) {
-    // initialize customer and account
-    var cust = customer.initWithKey(apiKey);
-
-    // make the API Calls
-    // postCustomer(apiKey, cust);
-    getCustomer(apiKey, cust);
-});
-
-function getCustomer (key, cust) {
-    var allCustomers = cust.getCustomers();
-    var myCustomer = null;
-
-    // loop through all customers and log their info
-    console.log("[Customer - Get All Customers]");
-    for (var i = 0; i < allCustomers.length; i++) {
-        var firstName = allCustomers[i].first_name;
-        var lastName = allCustomers[i].last_name;
-        console.log("Customer[" + i + "]: " + firstName + " " + lastName);
-
-        // take note of the customer we created
-        if(firstName == customerFirstName && lastName == customerLastName) {
-          myCustomer = allCustomers[i];
-        }
-    }
-    // display the customer we created
-    var fullName = myCustomer.first_name + " " + myCustomer.last_name
-    console.log("[Customer - My Customer] " + fullName);
-}
-// Nessie Load End
 
 /**
  * HelloWorld is a child of AlexaSkill.
@@ -138,7 +72,6 @@ HelloWorld.prototype.intentHandlers = {
     },
     "NearestATMIntent": function (intent, session, response) {
         //This is where we call nessie Api, and return the appropriate response
-
         request('http://api.reimaginebanking.com/atms?lat=38.9283&lng=-77.1753&rad=1&key=48dde91a66abb51288c608d269c6bb36', function (error, responseHttp, body) {
           if (!error && responseHttp.statusCode == 200) {
             bodyJSON = JSON.parse(body);
@@ -151,43 +84,54 @@ HelloWorld.prototype.intentHandlers = {
             }
           }
         })
-
-        // var options = {
-        //   host: 'api.reimaginebanking.com',
-        //   port: '80',
-        //   path: '/atms',
-        //   method: 'GET',
-        //   // headers: {
-        //   //   'Content-Type': 'application/x-www-form-urlencoded',
-        //   //   'Content-Length': post_data.length
-        //   // }
-        // };
-
-        // var req = http.request(options, function(res) {
-        //   // response is here
-        //   console.log(res);
-        //   var x = JSON.parse(res);
-        //   response.tellWithCard("The nearest ATM is in Here");
-        // });
-
-        // write the request parameters
-        // req.write('lat=38.9283&lng=-77.1753&rad=1&key=48dde91a66abb51288c608d269c6bb36');
-        // req.end();
     },
 
     "NearestATMWithLangIntent": function (intent, session, response) {
-        request('http://api.reimaginebanking.com/atms?lat=38.9283&lng=-77.1753&rad=1&key=48dde91a66abb51288c608d269c6bb36', function (error, responseHttp, body) {
+        request('http://api.reimaginebanking.com/atms?key=48dde91a66abb51288c608d269c6bb36', function (error, responseHttp, body) {
           if (!error && responseHttp.statusCode == 200) {
             bodyJSON = JSON.parse(body);
-            if(bodyJSON.data[0]){
-                response.tellWithCard("The nearest ATM is at " + bodyJSON.data[0].address.street_number + " " + bodyJSON.data[0].address.street_name +" "+ bodyJSON.data[0].address.city);
-                //_.findWhere(publicServicePulitzers, {newsroom: "The New York Times"});
+            if(bodyJSON.data.length){
+                var newBody = _.filter(bodyJSON.data, function(atm){ return _.indexOf( atm.language_list, intent.slots.language.value ) !== -1 });
+                response.tellWithCard("The nearest ATM is at " + newBody[0].address.street_number + " " + newBody[0].address.street_name +" "+ newBody[0].address.city);
 
             }else{
                 response.tellWithCard("I can't find any ATM around here.");
             }
+          } else {
+                console.log('error' ,error);
+                console.log('body:' ,body);
+                console.log('responseHttp.statusCode: ' ,responseHttp.statusCode);
           }
         });
+    },
+    "NearestATMWithZipcodeIntent": function (intent, session, response) {
+        var zipcode = intent.slots.zipcode.value;
+        if (zipcode){
+            request('http://maps.googleapis.com/maps/api/geocode/json?address=' + zipcode + '&sensor=true', function (error, responseHttp, body) {
+              if (!error && responseHttp.statusCode == 200) {
+                bodyJSON = JSON.parse(body);
+                console.log('bodyJSON : ', bodyJSON);
+                if(bodyJSON.results.length){
+                    var location = bodyJSON.results[0].geometry.location;
+                    console.log('location : ',location);
+                    console.log('URL for ', 'http://api.reimaginebanking.com/atms?lat=' +  location.lat +'&lng=' +  location.lng +'&rad=5&key=48dde91a66abb51288c608d269c6bb36');
+                    request('http://api.reimaginebanking.com/atms?lat=' +  location.lat +'&lng=' +  location.lng +'&rad=5&key=48dde91a66abb51288c608d269c6bb36', function (error, responseHttp, body) {
+                  if (!error && responseHttp.statusCode == 200) {
+                    bodyJSON = JSON.parse(body);
+                    if(bodyJSON.data[0]){
+                        response.tellWithCard("The nearest ATM is at " + bodyJSON.data[0].address.street_number + " " + bodyJSON.data[0].address.street_name +" "+ bodyJSON.data[0].address.city);
+
+                        }else{
+                            response.tellWithCard("I can't find any ATM around here.");
+                        }
+                      }
+                    });
+                }else{
+                    response.tellWithCard("Please try again with your zipcode.");
+                }
+              }
+            });
+        }
     },
     "AMAZON.HelpIntent": function (intent, session, response) {
         response.ask("Say the ATM name you're looking for!", "You can say hello to me!");
