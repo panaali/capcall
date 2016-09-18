@@ -1,0 +1,36 @@
+<!-- //
+/*
+ * Author: Vincent K. Sam
+ * Created on: May 1, 2015
+ */
+// -->
+<html>
+	<head>
+		
+		<!-- Required File -->
+		<script data-main="capital_one" src="require-jquery.js"></script>
+
+		<script>
+			$(function(){
+
+				require(['customer'], function (customer) {
+					var apikey = '423df4bc066ba5af261701695f7b147d';
+					customerDemo(apikey, customer); 
+				});
+			});
+
+		function customerDemo (apikey, customer) {
+			var customerAccount = customer.initWithKey(apikey);
+			var customerInfo = customerAccount.getCustomers()[0];
+			console.log("[Customer - Get All Customers] : Sample Customer: " + customerInfo.first_name);
+			$('#customer').html("Bank Customer: <b>" + customerInfo.first_name + " " + customerInfo.last_name + "</b>");
+		}
+
+		</script>
+	</head>
+	<body>
+		<p>Nessie is Real!</p><br/>
+		Consume the API to learn more about...<br/><br/> 
+		<div id="customer"></div>
+	</body>
+</html>
