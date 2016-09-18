@@ -86,6 +86,22 @@ HelloWorld.prototype.intentHandlers = {
         })
     },
 
+    "NearestBranchIntent": function (intent, session, response) {
+        //This is where we call nessie Api, and return the appropriate response
+        request('http://api.reimaginebanking.com/branches?lat=38.9283&lng=-77.1753&rad=1&key=48dde91a66abb51288c608d269c6bb36', function (error, responseHttp, body) {
+          if (!error && responseHttp.statusCode == 200) {
+            bodyJSON = JSON.parse(body);
+            if(bodyJSON[0]){
+                response.tellWithCard("The nearest Branch is at " + bodyJSON[0].address.street_number + " " + bodyJSON[0].address.street_name +" "+ bodyJSON[0].address.city);
+                //_.findWhere(publicServicePulitzers, {newsroom: "The New York Times"});
+
+            }else{
+                response.tellWithCard("I can't find any Branch around here.");
+            }
+          }
+        })
+    },
+
     "NearestATMWithLangIntent": function (intent, session, response) {
         request('http://api.reimaginebanking.com/atms?key=48dde91a66abb51288c608d269c6bb36', function (error, responseHttp, body) {
           if (!error && responseHttp.statusCode == 200) {
@@ -133,8 +149,37 @@ HelloWorld.prototype.intentHandlers = {
             });
         }
     },
+    "NearestBranchWithZipcodeIntent": function (intent, session, response) {
+        var zipcode = intent.slots.zipcode.value;
+        if (zipcode){
+            request('http://maps.googleapis.com/maps/api/geocode/json?address=' + zipcode + '&sensor=true', function (error, responseHttp, body) {
+              if (!error && responseHttp.statusCode == 200) {
+                bodyJSON = JSON.parse(body);
+                console.log('bodyJSON : ', bodyJSON);
+                if(bodyJSON.results.length){
+                    var location = bodyJSON.results[0].geometry.location;
+                    console.log('location : ',location);
+                    console.log('URL for ', 'http://api.reimaginebanking.com/branches?lat=' +  location.lat +'&lng=' +  location.lng +'&rad=5&key=48dde91a66abb51288c608d269c6bb36');
+                    request('http://api.reimaginebanking.com/branches?lat=' +  location.lat +'&lng=' +  location.lng +'&rad=5&key=48dde91a66abb51288c608d269c6bb36', function (error, responseHttp, body) {
+                  if (!error && responseHttp.statusCode == 200) {
+                    bodyJSON = JSON.parse(body);
+                    if(bodyJSON.data[0]){
+                        response.tellWithCard("The nearest ATM is at " + bodyJSON.data[0].address.street_number + " " + bodyJSON.data[0].address.street_name +" "+ bodyJSON.data[0].address.city);
+
+                        }else{
+                            response.tellWithCard("I can't find any ATM around here.");
+                        }
+                      }
+                    });
+                }else{
+                    response.tellWithCard("Please try again with your zipcode.");
+                }
+              }
+            });
+        }
+    },
     "AMAZON.HelpIntent": function (intent, session, response) {
-        response.ask("Say the ATM name you're looking for!", "You can say hello to me!");
+        response.ask("Say the ATM name you're looking for!");
     }
 };
 
